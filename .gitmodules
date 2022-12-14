@@ -1,0 +1,3 @@
+[submodule "GODEL"]
+	path = GODEL
+	url = git@github.com:microsoft/GODEL.git

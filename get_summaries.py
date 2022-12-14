@@ -8,9 +8,11 @@ from transformers import BlenderbotConfig, BlenderbotForCausalLM
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from transformers import pipeline, pipelines
 
-from typing import List
 
+
+import time
 import torch
+from typing import List
 
 from tqdm import tqdm
 
@@ -106,8 +108,10 @@ if __name__ == "__main__":
     training_data = dataset['train']
     validation_data = dataset['validation']
     test_data = dataset['test']
-    
-    LIMIT = 1000
+    import time
+
+    start_time = time.time()
+    LIMIT = 5000
     subset = dataset.filter(lambda e, i: i<LIMIT, with_indices=True)
     with_timesteps_data = subset.map(lambda s: {"start_times": GetTwoRandomTimesteps(s["dialog"])}, num_proc=4)
     # random_start_data = with_timesteps_data.map(random_start_augment, num_proc=4)
@@ -123,4 +127,6 @@ if __name__ == "__main__":
     aug_data = cods1_preprocessed_data.map(lambda s: summarizer_augment_dict(summarizer, s),
         batched=True, remove_columns=cods1_preprocessed_data.column_names)
 
+    end_time = time.time()
+    print(f"{end_time - start_time} time has passed!")
     # need raw, timestep, and summary
