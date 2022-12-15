@@ -1,3 +1,4 @@
+import argparse
 import random
 import time
 
@@ -10,6 +11,10 @@ from datasets import Dataset
 from datasets.dataset_dict import DatasetDict
 
 from transformers import pipeline, pipelines
+
+from datetime import date
+
+
 
 def GetRandomTimesteps(dialog: List[str], t: int) -> List[int]:
     # Ignore 0th timesteps.
@@ -221,57 +226,84 @@ def GetCods2(split_dataset):
     return aug_data
 
 if __name__ == "__main__":
-    CODS1_SAVE_PATH = "/home/derekhmd/summ_bot/data/DailySummaryCods1"
-    CODS2_SAVE_PATH = "/home/derekhmd/summ_bot/data/DailySummaryCods2"
-    CODS_END_SAVE_PATH = "/home/derekhmd/summ_bot/data/DailySummaryCodsEnd"
+
+    today = date.today()
+
+    # dd/mm/YY
+    today = today.strftime("%Y%m%d")
+    CODS1_SAVE_PATH = f"/home/derekhmd/summ_bot/data/DailySummaryCods1.{today}"
+    CODS2_SAVE_PATH = f"/home/derekhmd/summ_bot/data/DailySummaryCods2.{today}"
+    CODS_END_SAVE_PATH = f"/home/derekhmd/summ_bot/data/DailySummaryCodsEnd.{today}"
+
+    AUGMENT_DATA = False
+
+    parser = argparse.ArgumentParser(
+                    prog = 'summarization_augmentation',
+                    description = 'Obtains daily dialog summary augmentations')
+
+    parser.add_argument('--augment', dest='is_augment', action='store_true')
+    parser.add_argument('--date', action='store_true')
+    parser.add_argument('--cods1', dest='cods1_path', action='store', type=str, default=CODS1_SAVE_PATH,
+        help='The path for 1-sentence summarized random-target dialogs.')
+    parser.add_argument('--cods2', dest='cods2_path', action='store', type=str, default=CODS2_SAVE_PATH,
+        help='The path for 2-sentence summarized random-target dialogs.')
+    parser.add_argument('--codse', dest='cods_end_path', action='store', type=str, default=CODS_END_SAVE_PATH,
+        help='The path for 1-sentence summarized end-target dialogs.')
+
+
+    args = parser.parse_args()
+
 
     dataset = load_dataset("daily_dialog")
     training_data = dataset['train']
     validation_data = dataset['validation']
     test_data = dataset['test']
 
-    subset = dataset
-    LIMIT = 20
-    subset = dataset.filter(lambda e, i: i<LIMIT, with_indices=True)
-    with_timesteps_data = subset.map(lambda s: {"start_times": GetTwoRandomTimesteps(s["dialog"])}, num_proc=4)
-    # random_start_data = with_timesteps_data.map(random_start_augment, num_proc=4)
-    
-    # CODS 1 End Summaries.
-    start_time = time.time()
-    augmented_dataE = DatasetDict()
-    augmented_dataE['train'] = GetCodsEnd(with_timesteps_data['train'])
-    augmented_dataE['validation'] = GetCodsEnd(with_timesteps_data['validation'])
-    augmented_dataE['test'] = GetCodsEnd(with_timesteps_data['test'])
-    augmented_dataE.save_to_disk(CODS_END_SAVE_PATH)
-    end_time = time.time()
-    print(f"{end_time - start_time} time has passed!")
+    if args.is_augment:
+        subset = dataset
+        LIMIT = 20
+        # subset = dataset.filter(lambda e, i: i<LIMIT, with_indices=True)
+        with_timesteps_data = subset.map(lambda s: {"start_times": GetTwoRandomTimesteps(s["dialog"])}, num_proc=4)
+        # random_start_data = with_timesteps_data.map(random_start_augment, num_proc=4)
+        
+        # CODS 1 End Summaries.
+        start_time = time.time()
+        augmented_dataE = DatasetDict()
+        augmented_dataE['train'] = GetCodsEnd(with_timesteps_data['train'])
+        augmented_dataE['validation'] = GetCodsEnd(with_timesteps_data['validation'])
+        augmented_dataE['test'] = GetCodsEnd(with_timesteps_data['test'])
+        augmented_dataE.save_to_disk(args.cods_end_path)
+        end_time = time.time()
+        print(f"{end_time - start_time} time has passed!")
 
-    # CODS 1 Summaries.
-    start_time = time.time()
-    augmented_data1 = DatasetDict()
-    augmented_data1['train'] = GetCods1(with_timesteps_data['train'])
-    augmented_data1['validation'] = GetCods1(with_timesteps_data['validation'])
-    augmented_data1['test'] = GetCods1(with_timesteps_data['test'])
-    augmented_data1.save_to_disk(CODS1_SAVE_PATH)
-    end_time = time.time()
-    print(f"{end_time - start_time} time has passed!")
+        # CODS 1 Summaries.
+        start_time = time.time()
+        augmented_data1 = DatasetDict()
+        augmented_data1['train'] = GetCods1(with_timesteps_data['train'])
+        augmented_data1['validation'] = GetCods1(with_timesteps_data['validation'])
+        augmented_data1['test'] = GetCods1(with_timesteps_data['test'])
+        augmented_data1.save_to_disk(args.cods1_path)
+        end_time = time.time()
+        print(f"{end_time - start_time} time has passed!")
 
-    # CODS 2 Summaries.
-    start_time = time.time()
-    augmented_data2 = DatasetDict()
-    augmented_data2['train'] = GetCods2(with_timesteps_data['train'])
-    augmented_data2['validation'] = GetCods2(with_timesteps_data['validation'])
-    augmented_data2['test'] = GetCods2(with_timesteps_data['test'])
-    augmented_data2.save_to_disk(CODS2_SAVE_PATH)
-    end_time = time.time()
-    print(f"{end_time - start_time} time has passed!")
+        # CODS 2 Summaries.
+        start_time = time.time()
+        augmented_data2 = DatasetDict()
+        augmented_data2['train'] = GetCods2(with_timesteps_data['train'])
+        augmented_data2['validation'] = GetCods2(with_timesteps_data['validation'])
+        augmented_data2['test'] = GetCods2(with_timesteps_data['test'])
+        augmented_data2.save_to_disk(args.cods2_path)
+        end_time = time.time()
+        print(f"{end_time - start_time} time has passed!")
 
 
 
-    for i in range (LIMIT):
-        print(f"Cods1 Summary: {augmented_data1['train']['summary'][i]}")
-        print(f"Cods2 Summary: {augmented_data2['train']['summary'][i]}")
+        for i in range (LIMIT):
+            print(f"Cods1 Summary: {augmented_data1['train']['summary'][i]}")
+            print(f"Cods2 Summary: {augmented_data2['train']['summary'][i]}")
 
-    # test = datasets.load_from_disk(SAVE_PATH)
+    augmented_dataE = load_from_disk(args.cods1_path)
+    augmented_data1 = load_from_disk(args.cods2_path)
+    augmented_data2 = load_from_disk(args.cods_end_path)
     
     
