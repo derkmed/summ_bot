@@ -2,49 +2,65 @@ import argparse
 from datetime import date
 
 from datasets import load_from_disk
+from enum import Enum
 
 '''
 Use this script to transform the summaries extracted from get_summaries.py into
 GODEL acceptable format {"CONTEXT", "KNOWLEDGE", "RESPONSE"}
+
+NOTE: Only works for CODS-1!
 '''
 
-def PreprocessForGodel(examples, is_use_summary: bool = True):
+class Mode(Enum):
+    history = 1 # history as "Context"
+    summary = 2 # summary as "Context"
+    both = 3    # history as "Context" and summary as extra "Knowledge"
+
+def PreprocessForGodel(examples, mode: Mode ):
     dialogs = examples['dialog']
     summaries = examples['summary']
     timesteps = examples['timestep']
     
     contexts = []
+    knowledges = []
     responses = []
     for i, d in enumerate(dialogs):
         t = timesteps[i]
-        if is_use_summary:
-                contexts.append(summaries[i])
+        if mode == Mode.summary:
+            contexts.append("START {}".format(summaries[i]))
         else:
             contexts.append("START {}".format(' EOS '.join(d[:t])))
+            if mode == Mode.both:
+                knowledges.append(summaries[i])
         
         responses.append(d[t])
     
-    # GODEL requires a "Knowledge" input. 
-    # But, we don't have knowledge for this project...
-    # No, really have you read our paper?
+
+    if mode != Mode.both:
+        # GODEL requires inputted "Knowledge". But, our project group was lacking it.
+        knowledges = ['' for _ in range(len(contexts))]
+
     return {
         "Context": contexts, 
-        "Knowledge": ['' for _ in range(len(contexts))],
+        "Knowledge": knowledges,
         "Response": responses
         }
 
 def Godel_Mapping_Function(examples):
-    return PreprocessForGodel(examples, is_use_summary=False)
+    return PreprocessForGodel(examples, Mode.history)
 
 def Godel_Summaries_Mapping_Function(examples):
-    return PreprocessForGodel(examples, is_use_summary=True)
+    return PreprocessForGodel(examples, Mode.summary)
+
+def Godel_Both_Mapping_Function(examples):
+    return PreprocessForGodel(examples, Mode.both)
 
 if __name__ == "__main__":
     '''
     python3 -i preprocess_for_godel.py
-        --cods1 "/home/derekhmd/summ_bot/data/DailySummaryCods1"
-        --cods2 "/home/derekhmd/summ_bot/data/DailySummaryCods2"
-        --codse "/home/derekhmd/summ_bot/data/DailySummaryCodsEnd"
+        --cods1 "/home/derekhmd/summ_bot/data/DailySummaryCods1.20221215"
+        --cods2 "/home/derekhmd/summ_bot/data/DailySummaryCods2.20221215"
+        --codse "/home/derekhmd/summ_bot/data/DailySummaryCodsEnd.20221215"
         --ocods1 "/home/derekhmd/summ_bot/data/GodelSummaryCods1"
         --ocods2 "/home/derekhmd/summ_bot/data/GodelSummaryCods2"
         --ocodse "/home/derekhmd/summ_bot/data/GodelSummaryCodsEnd"
@@ -105,3 +121,16 @@ if __name__ == "__main__":
     godel_summary_data1.save_to_disk(out_cods_1_path)
     godel_summary_data2.save_to_disk(out_cods_2_path)
     
+    # Handles mapping for summary-enriched histories.
+    out_both_E_path = f"{args.out_path}/bothE"
+    out_both_1_path = f"{args.out_path}/both1"
+    out_both_2_path = f"{args.out_path}/both2"
+    godel_both_dataE = augmented_dataE.map(Godel_Both_Mapping_Function,
+        batched=True, remove_columns=SUMMARIZED_COLUMN_NAMES, num_proc=4)
+    godel_both_data1 = augmented_data1.map(Godel_Both_Mapping_Function,
+        batched=True, remove_columns=SUMMARIZED_COLUMN_NAMES, num_proc=4)
+    godel_both_data2 = augmented_data2.map(Godel_Both_Mapping_Function,
+        batched=True, remove_columns=SUMMARIZED_COLUMN_NAMES, num_proc=4)
+    godel_both_dataE.save_to_disk(out_both_E_path)
+    godel_both_data1.save_to_disk(out_both_1_path)
+    godel_both_data2.save_to_disk(out_both_2_path)
