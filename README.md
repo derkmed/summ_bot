@@ -4,12 +4,12 @@
 This will install all the necessary dependencies. Run `conda env create -f environment.yml`
 
 ### Augment Daily Dialog with Summaries
-Run `python3 -i get_summaries.py`
+Run the `get_summaries.py` script in interactive mode.
 You can then interactively query for data as follows:
 ```
 >>> aug_data
 Dataset({
-    features: ['timesteps', 'data', 'sketch', 'summary'],
+    features: ['timesteps', 'data', 'summary'],
     num_rows: 1771
 })
 >>> aug_data['timesteps'][0]
@@ -32,3 +32,9 @@ Say , Jim , how about going for a few beers after dinner ?
 ```
 
 
+### Preprocess Augmented Data for GODEL finetuning
+Run `preprocess_for_godel.py`.
+
+
+### Finetune GODEL
+Run `./finetune_*.sh`to finetune a GODEL base model.
