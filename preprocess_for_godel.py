@@ -20,7 +20,7 @@ def PreprocessForGodel(examples, is_use_summary: bool = True):
         if is_use_summary:
                 contexts.append(summaries[i])
         else:
-            contexts.append(' EOS '.join(d[:t]))
+            contexts.append("START {}".format(' EOS '.join(d[:t])))
         
         responses.append(d[t])
     
